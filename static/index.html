@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>松原市議会 議事録AI検索くん</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic", sans-serif;
+      background: #f0f2f5;
+      color: #1a1a2e;
+      min-height: 100vh;
+    }
+
+    /* ===== ヘッダー ===== */
+    header {
+      background: #1b3a6b;
+      color: #fff;
+      padding: 0 24px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+    }
+    .header-inner {
+      max-width: 900px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 16px 0;
+    }
+    .city-badge {
+      background: #fff;
+      color: #1b3a6b;
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      padding: 8px 16px;
+      border-radius: 4px;
+      white-space: nowrap;
+    }
+    .header-title {
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+    }
+    .header-subtitle {
+      font-size: 12px;
+      color: #a8c4e8;
+      margin-top: 2px;
+    }
+
+    /* ===== メインコンテンツ ===== */
+    main {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 32px 16px 64px;
+    }
+
+    /* ===== 検索ボックス ===== */
+    .search-section {
+      background: #fff;
+      border-radius: 8px;
+      padding: 28px 28px 24px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+      margin-bottom: 24px;
+    }
+    .search-lead {
+      font-size: 14px;
+      color: #5a6a7a;
+      margin-bottom: 14px;
+      line-height: 1.7;
+    }
+    .search-row {
+      display: flex;
+      gap: 10px;
+    }
+    #searchInput {
+      flex: 1;
+      border: 2px solid #d0d8e4;
+      border-radius: 6px;
+      padding: 12px 16px;
+      font-size: 16px;
+      color: #1a1a2e;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    #searchInput:focus {
+      border-color: #1b3a6b;
+    }
+    #searchInput::placeholder { color: #aab; }
+    #searchBtn {
+      background: #1b3a6b;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 12px 28px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.2s;
+    }
+    #searchBtn:hover { background: #163060; }
+    #searchBtn:disabled { background: #8fa6c8; cursor: default; }
+
+    /* ===== ステータス ===== */
+    #status {
+      font-size: 13px;
+      color: #5a6a7a;
+      margin-top: 10px;
+      min-height: 20px;
+    }
+
+    /* ===== 候補キーワード ===== */
+    .suggestions {
+      margin-top: 20px;
+      padding: 18px 20px;
+      background: #eef4ff;
+      border-left: 4px solid #1b3a6b;
+      border-radius: 0 6px 6px 0;
+    }
+    .suggestions-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: #1b3a6b;
+      margin-bottom: 10px;
+    }
+    .keyword-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .keyword-tag {
+      background: #1b3a6b;
+      color: #fff;
+      border: none;
+      border-radius: 20px;
+      padding: 6px 14px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .keyword-tag:hover { background: #163060; }
+
+    /* ===== 結果カード ===== */
+    .result-count {
+      font-size: 13px;
+      color: #5a6a7a;
+      margin-bottom: 14px;
+    }
+    .result-count strong { color: #1b3a6b; }
+
+    .card {
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+      margin-bottom: 14px;
+      overflow: hidden;
+      transition: box-shadow 0.2s;
+    }
+    .card:hover { box-shadow: 0 3px 12px rgba(0,0,0,0.12); }
+
+    .card-header {
+      padding: 16px 20px 12px;
+      border-bottom: 1px solid #e8eef5;
+    }
+    .card-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 6px;
+    }
+    .badge {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 3px;
+      letter-spacing: 0.03em;
+    }
+    .badge-council {
+      background: #e8f0fb;
+      color: #1b3a6b;
+    }
+    .badge-schedule {
+      background: #f0f2f5;
+      color: #4a5568;
+    }
+    .card-speaker {
+      font-size: 15px;
+      font-weight: 700;
+      color: #1a1a2e;
+    }
+    .card-role {
+      font-size: 12px;
+      color: #7a8a9a;
+      margin-left: 4px;
+    }
+
+    .card-excerpt {
+      padding: 12px 20px;
+      font-size: 13px;
+      color: #4a5568;
+      line-height: 1.7;
+      border-bottom: 1px solid #e8eef5;
+    }
+    .highlight {
+      background: #fff5b1;
+      border-radius: 2px;
+      padding: 0 1px;
+    }
+
+    .card-footer {
+      padding: 10px 20px;
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+    .btn-summary {
+      background: #fff;
+      color: #1b3a6b;
+      border: 2px solid #1b3a6b;
+      border-radius: 5px;
+      padding: 7px 18px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-summary:hover {
+      background: #1b3a6b;
+      color: #fff;
+    }
+    .btn-summary:disabled {
+      border-color: #b0bbc8;
+      color: #b0bbc8;
+      cursor: default;
+    }
+    .btn-fulltext {
+      background: #fff;
+      color: #4a5568;
+      border: 2px solid #c0cede;
+      border-radius: 5px;
+      padding: 7px 18px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-fulltext:hover {
+      background: #f0f4f8;
+      border-color: #8a9aaa;
+    }
+
+    /* ===== 原文全文パネル ===== */
+    .fulltext-panel {
+      display: none;
+      padding: 18px 20px 20px;
+      background: #fafbfc;
+      border-top: 2px solid #8a9aaa;
+    }
+    .fulltext-panel.open { display: block; }
+    .fulltext-label {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      color: #5a6a7a;
+      margin-bottom: 10px;
+    }
+    .fulltext-body {
+      font-size: 14px;
+      color: #2a3a4a;
+      line-height: 1.9;
+      white-space: pre-wrap;
+      max-height: 500px;
+      overflow-y: auto;
+      border: 1px solid #e0e8f0;
+      border-radius: 4px;
+      padding: 14px 16px;
+      background: #fff;
+    }
+
+    /* ===== AI要約パネル ===== */
+    .summary-panel {
+      display: none;
+      padding: 18px 20px 20px;
+      background: #f0f6ff;
+      border-top: 2px solid #1b3a6b;
+    }
+    .summary-panel.open { display: block; }
+
+    .summary-label {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      color: #1b3a6b;
+      margin-bottom: 10px;
+    }
+    .summary-topic {
+      font-size: 16px;
+      font-weight: 700;
+      color: #1a1a2e;
+      margin-bottom: 12px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #c8daf5;
+    }
+    .summary-row {
+      margin-bottom: 10px;
+    }
+    .summary-row-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: #5a6a7a;
+      letter-spacing: 0.05em;
+      margin-bottom: 4px;
+    }
+    .summary-row-text {
+      font-size: 14px;
+      color: #2a3a4a;
+      line-height: 1.7;
+    }
+    .keyword-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 12px;
+    }
+    .keyword-chip {
+      background: #1b3a6b;
+      color: #fff;
+      font-size: 11px;
+      padding: 3px 10px;
+      border-radius: 12px;
+    }
+    .cached-badge {
+      display: inline-block;
+      font-size: 10px;
+      color: #5a8a5a;
+      background: #e8f5e8;
+      padding: 2px 8px;
+      border-radius: 10px;
+      margin-left: 8px;
+      vertical-align: middle;
+    }
+
+    /* ===== スピナー ===== */
+    .spinner {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 2px solid #c8daf5;
+      border-top-color: #1b3a6b;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      vertical-align: middle;
+      margin-right: 6px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ===== フッター ===== */
+    footer {
+      text-align: center;
+      font-size: 12px;
+      color: #8a9aaa;
+      padding: 24px 0;
+      border-top: 1px solid #dde4ec;
+      margin-top: 48px;
+    }
+
+    /* ===== フィルターバー ===== */
+    .filter-bar {
+      margin-top: 16px;
+      padding-top: 14px;
+      border-top: 1px solid #e8eef5;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      align-items: center;
+    }
+    .filter-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .filter-label {
+      font-size: 12px;
+      color: #5a6a7a;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .limit-btn {
+      background: #fff;
+      color: #1b3a6b;
+      border: 1.5px solid #c0cede;
+      border-radius: 4px;
+      padding: 5px 14px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .limit-btn:hover { border-color: #1b3a6b; }
+    .limit-btn.active {
+      background: #1b3a6b;
+      color: #fff;
+      border-color: #1b3a6b;
+    }
+    .year-select {
+      border: 1.5px solid #c0cede;
+      border-radius: 4px;
+      padding: 5px 10px;
+      font-size: 13px;
+      color: #1a1a2e;
+      background: #fff;
+      cursor: pointer;
+      outline: none;
+    }
+    .year-select:focus { border-color: #1b3a6b; }
+    .year-sep {
+      font-size: 13px;
+      color: #5a6a7a;
+    }
+
+    @media (max-width: 600px) {
+      .search-row { flex-direction: column; }
+      #searchBtn { width: 100%; }
+      .header-title { font-size: 15px; }
+      .filter-bar { gap: 12px; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <div>
+      <div class="city-badge">松原市議会</div>
+    </div>
+    <div>
+      <div class="header-title">議事録AI検索くん</div>
+      <div class="header-subtitle">平成30年〜令和7年 議員発言をAIで要約・検索</div>
+    </div>
+  </div>
+</header>
+
+<main>
+  <section class="search-section">
+    <p class="search-lead">
+      市議会で何が議論されたかを、キーワードで検索できます。<br>
+      気になるテーマや議員名を入力して「検索」してください。
+    </p>
+    <div class="search-row">
+      <input type="text" id="searchInput" placeholder="例：子育て支援、道路整備、橋本議員…" autocomplete="off">
+      <button id="searchBtn" onclick="doSearch()">検索</button>
+    </div>
+
+    <!-- フィルターバー -->
+    <div class="filter-bar">
+      <div class="filter-group">
+        <span class="filter-label">表示件数</span>
+        <button class="limit-btn active" data-limit="20" onclick="setLimit(20, this)">20件</button>
+        <button class="limit-btn" data-limit="50" onclick="setLimit(50, this)">50件</button>
+        <button class="limit-btn" data-limit="0" onclick="setLimit(0, this)">上限なし</button>
+      </div>
+      <div class="filter-group">
+        <span class="filter-label">期間</span>
+        <select id="yearFrom" class="year-select" onchange="onYearChange()">
+          <option value="">（指定なし）</option>
+        </select>
+        <span class="year-sep">〜</span>
+        <select id="yearTo" class="year-select" onchange="onYearChange()">
+          <option value="">（指定なし）</option>
+        </select>
+        <span id="yearWarning" style="display:none;font-size:12px;color:#c0392b;font-weight:700;">⚠ 順序が逆です（自動修正して検索）</span>
+      </div>
+    </div>
+
+    <div id="status"></div>
+  </section>
+
+  <div id="results"></div>
+</main>
+
+<footer>
+  データ出典：<a href="https://ssp.kaigiroku.net/tenant/matsubara/SpTop.html" target="_blank" style="color:#5a8abb">松原市議会 会議録検索システム</a>　／　AI要約：Google Gemini
+</footer>
+
+<script>
+  const input = document.getElementById('searchInput');
+  const btn   = document.getElementById('searchBtn');
+  const statusEl = document.getElementById('status');
+  const resultsEl = document.getElementById('results');
+
+  let currentQuery = '';
+  let currentLimit = 20;
+
+  // ページ読み込み時に年度一覧を取得してドロップダウンを埋める（新しい順）
+  let yearOrderAsc = []; // 古→新の順（API比較用）
+  (async () => {
+    try {
+      const res = await fetch('/api/years');
+      const data = await res.json();
+      yearOrderAsc = data.years || [];           // 古→新
+      const yearsDesc = [...yearOrderAsc].reverse(); // 新→古（表示用）
+      const fromSel = document.getElementById('yearFrom');
+      const toSel   = document.getElementById('yearTo');
+      yearsDesc.forEach(y => {
+        fromSel.appendChild(new Option(y, y));
+        toSel.appendChild(new Option(y, y));
+      });
+    } catch (e) { /* 年度取得失敗は無視 */ }
+  })();
+
+  function setLimit(val, el) {
+    currentLimit = val;
+    document.querySelectorAll('.limit-btn').forEach(b => b.classList.remove('active'));
+    el.classList.add('active');
+    if (currentQuery) doSearch();
+  }
+
+  function onYearChange() {
+    const fromVal = document.getElementById('yearFrom').value;
+    const toVal   = document.getElementById('yearTo').value;
+    const warning = document.getElementById('yearWarning');
+    // yearOrderAsc（古→新）でインデックス比較
+    const fi = yearOrderAsc.indexOf(fromVal);
+    const ti = yearOrderAsc.indexOf(toVal);
+    // 両方選択済みで from が to より新しい場合に警告（API側で自動修正される）
+    if (fi !== -1 && ti !== -1 && fi > ti) {
+      warning.style.display = 'inline';
+    } else {
+      warning.style.display = 'none';
+    }
+    if (currentQuery) doSearch();
+  }
+
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter') doSearch();
+  });
+
+  function setStatus(msg) {
+    statusEl.innerHTML = msg;
+  }
+
+  async function doSearch() {
+    const q = input.value.trim();
+    if (!q) return;
+    currentQuery = q;
+
+    const yearFrom = document.getElementById('yearFrom').value;
+    const yearTo   = document.getElementById('yearTo').value;
+
+    let url = `/api/search?q=${encodeURIComponent(q)}&limit=${currentLimit}`;
+    if (yearFrom) url += `&year_from=${encodeURIComponent(yearFrom)}`;
+    if (yearTo)   url += `&year_to=${encodeURIComponent(yearTo)}`;
+
+    btn.disabled = true;
+    setStatus('<span class="spinner"></span> 検索中...');
+    resultsEl.innerHTML = '';
+
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('サーバーエラー');
+      const data = await res.json();
+
+      btn.disabled = false;
+
+      if (data.total === 0) {
+        setStatus('');
+        renderNoResults(q, data.suggestions);
+        return;
+      }
+
+      setStatus('');
+      renderResults(data);
+    } catch (e) {
+      btn.disabled = false;
+      setStatus('⚠️ 検索に失敗しました。ページを再読み込みしてください。');
+    }
+  }
+
+  function escHtml(s) {
+    return String(s)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function highlight(text, query) {
+    const safe = escHtml(text);
+    if (!query) return safe;
+    const re = new RegExp(escHtml(query).replace(/[.*+?^${}()|[\]\\]/g,'\\$&'), 'gi');
+    return safe.replace(re, m => `<span class="highlight">${m}</span>`);
+  }
+
+  function renderResults(data) {
+    let html = `<div class="result-count"><strong>${data.total}件</strong>の発言が見つかりました</div>`;
+    data.results.forEach(r => {
+      html += `
+        <div class="card" id="card-${r.id}">
+          <div class="card-header">
+            <div class="card-meta">
+              <span class="badge badge-council">${escHtml(r.council_name)}</span>
+              <span class="badge badge-schedule">${escHtml(r.schedule_name)}</span>
+            </div>
+            <span class="card-speaker">${escHtml(r.speaker_name)}</span>
+            <span class="card-role">${escHtml(r.speaker_role)}</span>
+          </div>
+          <div class="card-excerpt">${highlight(r.content_excerpt, currentQuery)}…</div>
+          <div class="card-footer">
+            <button class="btn-fulltext" id="btnft-${r.id}" onclick="loadFullText(${r.id})">原文を見る</button>
+            <button class="btn-summary" id="btn-${r.id}" onclick="loadSummary(${r.id})">
+              ${r.has_summary ? '✓ AI要約を見る' : 'AI要約を見る'}
+            </button>
+          </div>
+          <div class="fulltext-panel" id="fulltext-${r.id}"></div>
+          <div class="summary-panel" id="summary-${r.id}"></div>
+        </div>`;
+    });
+    resultsEl.innerHTML = html;
+  }
+
+  function renderNoResults(q, suggestions) {
+    let html = `<div class="card-excerpt" style="padding:20px;background:#fff;border-radius:8px;color:#5a6a7a;">
+      「${escHtml(q)}」に一致する発言が見つかりませんでした。
+    </div>`;
+
+    if (suggestions && suggestions.length > 0) {
+      html += `<div class="suggestions">
+        <div class="suggestions-title">💡 こんなキーワードで試してみてください</div>
+        <div class="keyword-tags">
+          ${suggestions.map(kw => `<button class="keyword-tag" onclick="searchKeyword('${escHtml(kw)}')">${escHtml(kw)}</button>`).join('')}
+        </div>
+      </div>`;
+    }
+    resultsEl.innerHTML = html;
+  }
+
+  function searchKeyword(kw) {
+    input.value = kw;
+    doSearch();
+  }
+
+  async function loadFullText(id) {
+    const panel = document.getElementById(`fulltext-${id}`);
+    const btn   = document.getElementById(`btnft-${id}`);
+
+    // 既に開いていれば閉じる
+    if (panel.classList.contains('open')) {
+      panel.classList.remove('open');
+      btn.textContent = '原文を見る';
+      return;
+    }
+
+    // キャッシュ済みならAPIを叩かず再表示
+    if (panel.dataset.loaded === 'true') {
+      panel.classList.add('open');
+      btn.textContent = '▲ 原文を閉じる';
+      return;
+    }
+
+    btn.disabled = true;
+    panel.innerHTML = '<div style="padding:14px 0;color:#5a6a7a"><span class="spinner"></span> 読み込み中...</div>';
+    panel.classList.add('open');
+
+    try {
+      const res = await fetch(`/api/speech/${id}`);
+      if (!res.ok) throw new Error();
+      const d = await res.json();
+
+      panel.innerHTML = `
+        <div class="fulltext-label">原文（発言全文）</div>
+        <div class="fulltext-body">${escHtml(d.content)}</div>
+      `;
+      panel.dataset.loaded = 'true';
+      btn.disabled = false;
+      btn.textContent = '▲ 原文を閉じる';
+    } catch (e) {
+      panel.innerHTML = '<div style="color:#c0392b;padding:12px 0">原文の取得に失敗しました。</div>';
+      btn.disabled = false;
+    }
+  }
+
+  async function loadSummary(id) {
+    const panel = document.getElementById(`summary-${id}`);
+    const btn   = document.getElementById(`btn-${id}`);
+
+    // 既に開いていれば閉じる
+    if (panel.classList.contains('open')) {
+      panel.classList.remove('open');
+      const hasSummary = btn.dataset.hasSummary === 'true';
+      btn.textContent = hasSummary ? '✓ AI要約を見る' : 'AI要約を見る';
+      return;
+    }
+
+    btn.disabled = true;
+    panel.innerHTML = '<div style="padding:16px 0;color:#5a6a7a"><span class="spinner"></span> AI要約を生成中...</div>';
+    panel.classList.add('open');
+
+    try {
+      const res = await fetch(`/api/summary/${id}`, { method: 'POST' });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        panel.innerHTML = `<div style="color:#c0392b;padding:12px 0">${escHtml(err.detail || 'AI要約の取得に失敗しました')}</div>`;
+        btn.disabled = false;
+        return;
+      }
+
+      const d = await res.json();
+      const cachedBadge = d._cached ? '<span class="cached-badge">キャッシュ済み</span>' : '';
+
+      const kw = Array.isArray(d.keywords) ? d.keywords : [];
+      const kwHtml = kw.length
+        ? `<div class="keyword-list">${kw.map(k => `<span class="keyword-chip">${escHtml(k)}</span>`).join('')}</div>`
+        : '';
+
+      panel.innerHTML = `
+        <div class="summary-label">AI 要約 ${cachedBadge}</div>
+        <div class="summary-topic">${escHtml(d.topic || '（タイトルなし）')}</div>
+        <div class="summary-row">
+          <div class="summary-row-label">議員の質問</div>
+          <div class="summary-row-text">${escHtml(d.question_summary || '—')}</div>
+        </div>
+        ${d.answer_summary ? `
+        <div class="summary-row">
+          <div class="summary-row-label">市の答弁</div>
+          <div class="summary-row-text">${escHtml(d.answer_summary)}</div>
+        </div>` : ''}
+        ${kwHtml}
+        <div style="margin-top:12px;font-size:11px;color:#8a9aaa;">※AI要約です。内容は原文をご確認ください。</div>
+      `;
+
+      btn.disabled = false;
+      btn.dataset.hasSummary = 'true';
+      btn.textContent = '▲ 閉じる';
+    } catch (e) {
+      panel.innerHTML = `<div style="color:#c0392b;padding:12px 0">通信エラーが発生しました。</div>`;
+      btn.disabled = false;
+    }
+  }
+</script>
+</body>
+</html>

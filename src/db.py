@@ -207,6 +207,22 @@ def insert_speeches(minute_id: int, speeches: list[dict]):
         """, [{"minute_id": minute_id, **s} for s in speeches])
 
 
+def get_speech_by_id(speech_id: int) -> dict | None:
+    """発言IDから発言データを取得する（会議情報付き）"""
+    with get_conn() as conn:
+        row = conn.execute("""
+            SELECT sp.*,
+                   m.council_id, m.schedule_id,
+                   c.name as council_name, s.name as schedule_name
+            FROM speeches sp
+            JOIN minutes m ON sp.minute_id = m.id
+            JOIN councils c ON m.council_id = c.council_id
+            JOIN schedules s ON m.council_id = s.council_id AND m.schedule_id = s.schedule_id
+            WHERE sp.id = ?
+        """, (speech_id,)).fetchone()
+        return dict(row) if row else None
+
+
 def get_speeches_for_minute(minute_id: int) -> list[dict]:
     with get_conn() as conn:
         rows = conn.execute(
@@ -250,16 +266,44 @@ def get_unparsed_minutes() -> list[dict]:
         return [dict(r) for r in rows]
 
 
-def search_speeches(query: str, limit: int = 20) -> list[dict]:
+def get_distinct_years() -> list[str]:
+    """DB に存在する year_label を古い順（平成30年→令和7年）で返す"""
+    year_order = [
+        "平成30年",
+        "令和元年", "令和1年", "令和元年/平成31年",
+        "令和2年", "令和3年", "令和4年",
+        "令和5年", "令和6年", "令和7年",
+    ]
+    with get_conn() as conn:
+        rows = conn.execute("SELECT DISTINCT year_label FROM councils").fetchall()
+    labels = {r["year_label"] for r in rows if r["year_label"]}
+    ordered = [y for y in year_order if y in labels]
+    # year_order 未定義のものは末尾に追加
+    ordered += sorted(labels - set(year_order))
+    return ordered
+
+
+def search_speeches(query: str, limit: int = 20,
+                    year_labels: list[str] | None = None) -> list[dict]:
     """
     キーワードで発言テキストを検索する（LIKE検索）。
     日本語はスペース区切りがないためFTSではなくLIKEを使用する。
     議員発言（member）のみを返し、会議情報も付与する。
+    year_labels を指定すると、その年度だけに絞り込む。
     """
     like = f"%{query}%"
+
+    # 年度フィルター
+    year_clause = ""
+    year_params: list = []
+    if year_labels:
+        placeholders = ",".join(["?" for _ in year_labels])
+        year_clause = f"AND c.year_label IN ({placeholders})"
+        year_params = list(year_labels)
+
     with get_conn() as conn:
         if limit and limit > 0:
-            rows = conn.execute("""
+            rows = conn.execute(f"""
                 SELECT sp.*,
                        m.council_id, m.schedule_id,
                        c.name as council_name, s.name as schedule_name
@@ -269,12 +313,13 @@ def search_speeches(query: str, limit: int = 20) -> list[dict]:
                 JOIN schedules s ON m.council_id = s.council_id AND m.schedule_id = s.schedule_id
                 WHERE (sp.content LIKE ? OR sp.speaker_name LIKE ?)
                   AND sp.speaker_type = 'member'
+                  {year_clause}
                 ORDER BY m.council_id DESC, sp.order_num ASC
                 LIMIT ?
-            """, (like, like, limit)).fetchall()
+            """, (like, like, *year_params, limit)).fetchall()
         else:
             # limit=0 のとき全件取得
-            rows = conn.execute("""
+            rows = conn.execute(f"""
                 SELECT sp.*,
                        m.council_id, m.schedule_id,
                        c.name as council_name, s.name as schedule_name
@@ -284,8 +329,9 @@ def search_speeches(query: str, limit: int = 20) -> list[dict]:
                 JOIN schedules s ON m.council_id = s.council_id AND m.schedule_id = s.schedule_id
                 WHERE (sp.content LIKE ? OR sp.speaker_name LIKE ?)
                   AND sp.speaker_type = 'member'
+                  {year_clause}
                 ORDER BY m.council_id DESC, sp.order_num ASC
-            """, (like, like)).fetchall()
+            """, (like, like, *year_params)).fetchall()
         return [dict(r) for r in rows]
 
 
