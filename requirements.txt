@@ -1,0 +1,9 @@
+# スクレイピング
+playwright>=1.40.0
+httpx>=0.27.0
+
+# Gemini AI（新SDK）
+google-genai>=1.0.0
+
+# 環境変数
+python-dotenv>=1.0.0
