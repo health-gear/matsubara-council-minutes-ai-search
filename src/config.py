@@ -37,7 +37,7 @@ HEADLESS = os.getenv("HEADLESS", "true").lower() == "true"
 
 # --- Gemini AI ---
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.1-flash")
 
 # 1リクエストあたりの最大文字数（コスト削減）
 GEMINI_MAX_CHARS = int(os.getenv("GEMINI_MAX_CHARS", "3000"))
